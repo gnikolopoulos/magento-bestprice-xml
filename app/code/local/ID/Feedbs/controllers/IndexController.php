@@ -20,11 +20,17 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
   private function init()
   {
-    $this->store_name = Mage::getStoreConfig('feedbs/feedbs/store_name');
-    $this->xml_file_name = Mage::getStoreConfig('feedbs/feedbs/xml_file_name');
-    $this->xml_path = Mage::getStoreConfig('feedbs/feedbs/feed_path');
+    $this->store_name = Mage::getStoreConfig('feedbs/feed/store_name');
+    $this->xml_file_name = Mage::getStoreConfig('feedbs/feed/xml_file_name');
+    $this->xml_path = Mage::getStoreConfig('feedbs/feed/feed_path');
     $this->file = $this->xml_path . $this->xml_file_name;
-    $this->excluded = explode(',', Mage::getStoreConfig('feedbs/feedbs/excluded_cats'));
+
+    $this->show_outofstock = Mage::getStoreConfig('feedbs/collection/show_unavailable');
+    $this->excluded = explode(',', Mage::getStoreConfig('feedbs/collection/excluded_cats'));
+
+    $this->instock_msg = Mage::getStoreConfig('feedbs/messages/in_stock');
+    $this->nostock_msg = Mage::getStoreConfig('feedbs/messages/out_of_stock');
+    $this->backorder_msg = Mage::getStoreConfig('feedbs/messages/backorder');
   }
 
   public function indexAction() {
@@ -138,13 +144,15 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
       )
     ); //bestprice products only
     $this->oProducts->addAttributeToSelect('*');
-    $this->oProducts->joinField('qty',
-                 'cataloginventory/stock_item',
-                 'qty',
-                 'product_id=entity_id',
-                 '{{table}}.stock_id=1',
-                 'left');
-    $this->oProducts->addAttributeToFilter('qty', array("gt" > 0));
+    if( $this->show_outofstock ) {
+      $this->oProducts->joinField('qty',
+                   'cataloginventory/stock_item',
+                   'qty',
+                   'product_id=entity_id',
+                   '{{table}}.stock_id=1',
+                   'left');
+      $this->oProducts->addAttributeToFilter('qty', array("gt" > 0));
+    }
     $this->oProdudctIds = $this->oProducts->getAllIds();
   }
 
