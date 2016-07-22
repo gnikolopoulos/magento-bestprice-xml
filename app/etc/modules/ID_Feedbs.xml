@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <ID_Feedbs>
+            <active>true</active>
+            <codePool>local</codePool>
+        </ID_Feedbs>
+    </modules>
+</config>

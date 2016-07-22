@@ -1,1 +1,1 @@
-magento-bestprice-xml
+Magento Skroutz XML
