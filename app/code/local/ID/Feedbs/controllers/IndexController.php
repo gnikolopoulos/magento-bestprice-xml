@@ -5,11 +5,11 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
   private $oProducts;
   private $oProdudctIds;
   private $oProductModel;
-  private $name = Mage::getStoreConfig('feed/feed/store_name');
-  private $xml_file_name = Mage::getStoreConfig('feedbs/feedbs/xml_file_name');
-  private $xml_path = Mage::getStoreConfig('feedbs/feedbs/feed_path');
-  private $file = $xml_path . $xml_path;
-  private $excluded = explode(',', Mage::getStoreConfig('feedbs/feedbs/excluded_cats'));
+  private $store_name;
+  private $xml_file_name;
+  private $xml_path;
+  private $file;
+  private $excluded;
   private $xml;
   private $xmlContents;
 
@@ -18,7 +18,18 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
   private $notAllowed = array('Νο', 'Όχι');
 
+  private function init()
+  {
+    $this->store_name = Mage::getStoreConfig('feed/feed/store_name');
+    $this->xml_file_name = Mage::getStoreConfig('feed/feed/xml_file_name');
+    $this->xml_path = Mage::getStoreConfig('feed/feed/feed_path');
+    $this->file = $this->xml_path . $this->xml_file_name;
+    $this->excluded = explode(',', Mage::getStoreConfig('feed/feed/excluded_cats'));
+  }
+
   public function indexAction() {
+
+    $this->init();
 
     $this->getProducts();
     $this->createXML();
@@ -82,7 +93,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $dom = new DomDocument("1.0", "utf-8");
     $dom->formatOutput = true;
 
-    $root = $dom->createElement($this->name);
+    $root = $dom->createElement($this->store_name);
 
     $stamp = $dom->createElement('date', date('Y-m-d H:i') );
     $root->appendChild($stamp);
@@ -91,7 +102,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $root->appendChild($nodes);
 
     $nameAttribute = $dom->createAttribute('name');
-    $nameAttribute->value = 'Fifth Element - Adventure Store';
+    $nameAttribute->value = Mage::app()->getStore()->getFrontendName();
     $root->appendChild($nameAttribute);
 
     $urlAttribute = $dom->createAttribute('url');
