@@ -20,11 +20,11 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
   private function init()
   {
-    $this->store_name = Mage::getStoreConfig('feed/feed/store_name');
-    $this->xml_file_name = Mage::getStoreConfig('feed/feed/xml_file_name');
-    $this->xml_path = Mage::getStoreConfig('feed/feed/feed_path');
+    $this->store_name = Mage::getStoreConfig('feedbs/feedbs/store_name');
+    $this->xml_file_name = Mage::getStoreConfig('feedbs/feedbs/xml_file_name');
+    $this->xml_path = Mage::getStoreConfig('feedbs/feedbs/feed_path');
     $this->file = $this->xml_path . $this->xml_file_name;
-    $this->excluded = explode(',', Mage::getStoreConfig('feed/feed/excluded_cats'));
+    $this->excluded = explode(',', Mage::getStoreConfig('feedbs/feedbs/excluded_cats'));
   }
 
   public function indexAction() {
