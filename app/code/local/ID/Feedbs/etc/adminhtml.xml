@@ -8,7 +8,7 @@
                         <children>
                             <config>
                                 <children>
-                                    <feedbs translate="title" module="feed">
+                                    <feedbs translate="title" module="feedbs">
                                         <title>Bestprice Feed</title>
                                     </feedbs>
                                 </children>
