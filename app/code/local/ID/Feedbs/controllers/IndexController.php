@@ -187,8 +187,16 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $aData['link']=mb_substr($oProduct->getProductUrl(),0,299,'UTF-8');
     $aData['image_link_large']= mb_substr(Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA).'catalog/product'.$oProduct->getImage(),0,399,'UTF-8');
 
-    $aData['stock']='Y';
-    $aData['stock_descrip']='Σε απόθεμα';
+    if( $oProduct->isAvailable() && $inventory->getBackorders() == 0 ) {
+      $aData['stock']='Y';
+      $aData['stock_descrip'] = $this->instock_msg;
+    } elseif( $oProduct->isAvailable() && $inventory->getBackorders() != 0 ) {
+      $aData['stock']='Y';
+      $aData['stock_descrip'] = $this->backorder_msg;
+    } elseif( !$oProduct->isAvailable() ) {
+      $aData['stock']='Y';
+      $aData['stock_descrip'] = $this->nostock_msg;
+    }
 
     $aData['categoryid'] = $aCats['cid'];
     $aData['category'] = $aCats['bread'];
