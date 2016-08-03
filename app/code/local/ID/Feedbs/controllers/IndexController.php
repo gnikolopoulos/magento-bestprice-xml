@@ -13,6 +13,8 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
   private $xml;
   private $xmlContents;
 
+  private $attribute;
+
   private $BadChars = array('"',"\r\n","\n","\r","\t");
   private $ReplaceChars = array(""," "," "," ","");
 
@@ -24,6 +26,8 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $this->xml_file_name = Mage::getStoreConfig('feedbs/feed/xml_file_name');
     $this->xml_path = Mage::getStoreConfig('feedbs/feed/feed_path');
     $this->file = $this->xml_path . $this->xml_file_name;
+
+    $this->attribute = Mage::getStoreConfig('feedbs/collection/attribute');
 
     $this->show_outofstock = Mage::getStoreConfig('feedbs/collection/show_unavailable');
     $this->excluded = explode(',', Mage::getStoreConfig('feedbs/collection/excluded_cats'));
@@ -50,7 +54,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
       $oProduct = Mage::getModel('catalog/product');
       $oProduct ->load($iProduct);
       $stockItem = $oProduct->isAvailable();
-      $bestprice = $oProduct->getData('bestprice');
+      $bestprice = $oProduct->getData( $this->attribute );
       if($stockItem == 1 && $bestprice == 1) {
         $p = $this->getProductData($iProduct);
 
@@ -140,7 +144,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $this->oProducts->addAttributeToFilter('visibility', 4); //catalog, search
     $this->oProducts->addAttributeToFilter(
       array(
-        array('attribute'=>'bestprice', 'eq' => '1'),
+        array('attribute'=>$this->attribute, 'eq' => '1'),
       )
     ); //bestprice products only
     $this->oProducts->addAttributeToSelect('*');
@@ -186,6 +190,8 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
     $aData['link']=mb_substr($oProduct->getProductUrl(),0,299,'UTF-8');
     $aData['image_link_large']= mb_substr(Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA).'catalog/product'.$oProduct->getImage(),0,399,'UTF-8');
+
+    $inventory =  Mage::getModel('cataloginventory/stock_item')->loadByProduct($oProduct);
 
     if( $oProduct->isAvailable() && $inventory->getBackorders() == 0 ) {
       $aData['stock']='Y';
