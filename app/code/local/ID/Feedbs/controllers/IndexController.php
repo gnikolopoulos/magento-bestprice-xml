@@ -148,7 +148,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
       )
     ); //bestprice products only
     $this->oProducts->addAttributeToSelect('*');
-    if( $this->show_outofstock ) {
+    if( !$this->show_outofstock ) {
       $this->oProducts->joinField('qty',
                    'cataloginventory/stock_item',
                    'qty',
