@@ -39,63 +39,20 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
   public function indexAction() {
 
+    $time_start = microtime(true);
+
     $this->init();
-
-    $this->getProducts();
     $this->createXML();
-
     $this->openXML();
 
-    $base_node = $this->xml->getElementsByTagName('products')->item(0);
+    $this->base_node = $this->xml->getElementsByTagName('products')->item(0);
 
-    foreach ($this->oProdudctIds as $iProduct) {
-      @set_time_limit(0);
+    $this->getProducts();
 
-      $oProduct = Mage::getModel('catalog/product');
-      $oProduct ->load($iProduct);
-      $stockItem = $oProduct->isAvailable();
-      $bestprice = $oProduct->getData( $this->attribute );
-      if($stockItem == 1 && $bestprice == 1) {
-        $p = $this->getProductData($iProduct);
+    $this->xml->formatOutput = true;
+    $this->xml->save($this->file);
 
-        $product = $this->xml->createElement("product");
-        $base_node->appendChild( $product );
-
-        $product->appendChild ( $this->xml->createElement('productId', $p['id']) );
-        $product->appendChild ( $this->xml->createElement('MPN', $p['mpn']) );
-        $product->appendChild ( $this->xml->createElement('brand', $p['brand']) );
-
-        $title = $product->appendChild($this->xml->createElement('title'));
-        $title->appendChild($this->xml->createCDATASection( $p['title'] ));
-
-        $description = $product->appendChild($this->xml->createElement('description'));
-        $description->appendChild($this->xml->createCDATASection( $p['description'] ));
-
-        $product->appendChild ( $this->xml->createElement('price', $p['price']) );
-        $product->appendChild ( $this->xml->createElement('productURL', $p['link']) );
-        $product->appendChild ( $this->xml->createElement('imageURL', $p['image_link_large']) );
-        $product->appendChild ( $this->xml->createElement('stock', $p['stock']) );
-        $product->appendChild ( $this->xml->createElement('availability', $p['stock_descrip']) );
-
-        $category = $product->appendChild($this->xml->createElement('categoryPath'));
-        $category->appendChild($this->xml->createCDATASection( $p['category'] ));
-
-        $product->appendChild ( $this->xml->createElement('categoryID', $p['categoryid']) );
-
-        if( $p['color'] != '' && !in_array($p['color'], $this->notAllowed) ) {
-          $product->appendChild ( $this->xml->createElement('color', $p['color']) );
-        }
-
-        if( isset($p['size']) && $p['size'] != '' ) {
-          $product->appendChild ( $this->xml->createElement('size', $p['size']) );
-        }
-
-        $this->xml->formatOutput = true;
-        $this->xml->save($this->file);
-
-      } // endif
-
-    } // endforeach
+    echo 'XML Feed generated in: ' . number_format((microtime(true) - $time_start), 2) . ' seconds';
 
   }
 
@@ -105,7 +62,8 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
     $root = $dom->createElement($this->store_name);
 
-    $stamp = $dom->createElement('date', date('Y-m-d H:i') );
+    date_default_timezone_set('Europe/Athens');
+    $stamp = $dom->createElement('created_at', date('Y-m-d H:i') );
     $root->appendChild($stamp);
 
     $nodes = $dom->createElement('products');
@@ -147,61 +105,69 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
         array('attribute'=>$this->attribute, 'eq' => '1'),
       )
     ); //bestprice products only
-    $this->oProducts->addAttributeToSelect('*');
+    $this->oProducts->addAttributeToSelect(['entity_id', 'attribute_set_id', 'skroutz','sku','name','manufacturer_value','final_price','short_description','url_path','small_image','color_value','type_id', 'is_in_stock', 'image']);
     if( !$this->show_outofstock ) {
-      $this->oProducts->joinField('qty',
-                   'cataloginventory/stock_item',
-                   'qty',
-                   'product_id=entity_id',
-                   '{{table}}.stock_id=1',
-                   'left');
-      $this->oProducts->addAttributeToFilter('qty', array("gt" > 0));
+      $this->oProducts->joinTable('cataloginventory/stock_item', 'product_id=entity_id', array('*'), 'is_in_stock = 1');
     }
-    $this->oProdudctIds = $this->oProducts->getAllIds();
+    $this->oProducts->addFinalPrice();
+    
+  	Mage::getSingleton('core/resource_iterator')->walk(
+  		$this->oProducts->getSelect(),
+  			array(array($this, 'productCallback')),
+  			array('store_id' => $storeId)
+  	);
   }
 
-  private function getProductData($iProduct) {
-    $oProduct = Mage::getModel('catalog/product');
-    $oProduct ->load($iProduct);
+  private function productCallback($args) {
+    $oProduct = Mage::getModel('catalog/product')->setData($args['row']);
 
     $aCats = $this->getCategories($oProduct);
 
     $aData = array();
 
-    $aData['id']=$iProduct;
-    $aData['mpn']=mb_substr($oProduct->getSku(),0,99,'UTF-8');
+    $aData['id'] = $oProduct->entity_id;
+    $aData['mpn'] = mb_substr($oProduct->sku,0,99,'UTF-8');
 
-    $aData['brand']=@mb_substr($oProduct->getResource()->getAttribute('manufacturer')->getFrontend()->getValue($oProduct),0,99,'UTF-8');
+    $aData['brand'] = strtoupper( @mb_substr($oProduct->manufacturer_value,0,99,'UTF-8') );
+    $aData['title'] = $aData['brand'] . ' ' . mb_substr($oProduct->name,0,299,'UTF-8') . ' - ' . $aData['mpn'];
 
-    $_finalPrice = $oProduct->getFinalPrice();
-    $product_price = Mage::helper('tax')->getPrice($oProduct, $_finalPrice, true);
-    $aData['title']= $aData['brand'] . ' ' . mb_substr($oProduct->getName(),0,299,'UTF-8');
+    $aData['description']= strip_tags($oProduct->short_description);
+    $aData['price'] = preg_replace('/,/', '.', Mage::helper('tax')->getPrice($oProduct, $oProduct->final_price, true));
 
-    $aData['description']= strip_tags($oProduct->getShortDescription());
-    $aData['price'] = preg_replace('/,/', '.', $product_price);
+    $aData['link'] = mb_substr($this->base_url . $oProduct->url_path,0,299,'UTF-8');
+    $aData['image_link_large'] = mb_substr($this->media_url.$oProduct->small_image,0,399,'UTF-8');
 
-    $aData['link']=mb_substr($oProduct->getProductUrl(),0,299,'UTF-8');
-    $aData['image_link_large']= mb_substr(Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA).'catalog/product'.$oProduct->getImage(),0,399,'UTF-8');
+    $attributes = $oProduct->getTypeInstance(true)->getSetAttributes($oProduct);
+      $media_gallery = $attributes['media_gallery'];
+      $backend = $media_gallery->getBackend();
+      $backend->afterLoad($oProduct);
+      $mediaGallery = $oProduct->getMediaGalleryImages();
 
-    $inventory =  Mage::getModel('cataloginventory/stock_item')->loadByProduct($oProduct);
+    foreach($oProduct->getMediaGalleryImages() as $image) {
+        if( $image->getPosition() != 1 ) {
+            $aData['additional_imageurl'][] = $image->getUrl();
+          }
+      }
 
-    if( $oProduct->isAvailable() && $inventory->getBackorders() == 0 ) {
-      $aData['stock']='Y';
+    if( $this->show_outofstock ) {
+      if( $oProduct->isAvailable() ) {
+        $aData['stock'] = 'Y';
+        $aData['stock_descrip'] = $this->instock_msg;
+      } else {
+        $aData['stock'] = 'N';
+        $aData['stock_descrip'] = $this->nostock_msg;
+      }
+    } else {
+      $aData['stock'] = 'Y';
       $aData['stock_descrip'] = $this->instock_msg;
-    } elseif( $oProduct->isAvailable() && $inventory->getBackorders() != 0 ) {
-      $aData['stock']='Y';
-      $aData['stock_descrip'] = $this->backorder_msg;
-    } elseif( !$oProduct->isAvailable() ) {
-      $aData['stock']='Y';
-      $aData['stock_descrip'] = $this->nostock_msg;
     }
 
-    $aData['categoryid'] = $aCats['cid'];
-    $aData['category'] = $aCats['bread'];
+    $aData['categoryid'] = array_key_exists('cid', $aCats) ? $aCats['cid'] : '';
+    $aData['category'] = array_key_exists('bread', $aCats) ? $aCats['bread'] : '';
 
-    $aData['color']=@mb_substr($oProduct->getResource()->getAttribute('color')->getFrontend()->getValue($oProduct),0,99,'UTF-8');
+    $aData['color'] = @mb_substr($oProduct->color_value,0,99,'UTF-8');
 
-    if( $oProduct->isConfigurable() ) {
+    if( $oProduct->type_id == 'configurable' ) {
         unset($sizes);
         $parent = Mage::getModel('catalog/product_type_configurable')->setProduct($oProduct);
         $child = $parent->getUsedProductCollection()->addAttributeToSelect('*')->addFilterByRequiredOptions();
@@ -209,13 +175,56 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
           if( !in_array($simple_product->getResource()->getAttribute('size')->getFrontend()->getValue($simple_product), $this->notAllowed) )
             $sizes[] = $simple_product->getResource()->getAttribute('size')->getFrontend()->getValue($simple_product);
         }
-        if( count($sizes) > 0 ) {
+        if( $sizes && count($sizes) > 0 ) {
           $aData['size'] = implode(',', $sizes);
         } else {
           $aData['size'] = '';
         }
     }
-    return $aData;
+    $this->appendXML($aData);
+  }
+
+  private function appendXML($p) {
+    if( substr( $p['image_link_large'], -4 ) == '.jpg' ) {
+
+      $product = $this->xml->createElement("product");
+      $this->base_node->appendChild( $product );
+
+      $product->appendChild ( $this->xml->createElement('productId', $p['id']) );
+      $product->appendChild ( $this->xml->createElement('mpn', $p['mpn']) );
+      $product->appendChild ( $this->xml->createElement('brand', htmlspecialchars($p['brand'])) );
+      $product->appendChild ( $this->xml->createElement('title', strtoupper(filter_var($p['title'], FILTER_SANITIZE_STRING))) );
+
+      $description = $product->appendChild($this->xml->createElement('description'));
+      $description->appendChild($this->xml->createCDATASection( $p['description'] ));
+
+      $product->appendChild ( $this->xml->createElement('price', $p['price']) );
+      $product->appendChild ( $this->xml->createElement('productURL', $p['link']) );
+      $product->appendChild ( $this->xml->createElement('imageURL', $p['image_link_large']) );
+
+      if( $p['additional_imageurl'] ) {
+        foreach($p['additional_imageurl'] as $image) {
+          //$product->appendChild ( $this->xml->createElement('imagesURL', $image) );
+        }
+      }
+
+      $product->appendChild ( $this->xml->createElement('stock', $p['stock']) );
+      $product->appendChild ( $this->xml->createElement('availability', $p['stock_descrip']) );
+
+      $category = $product->appendChild($this->xml->createElement('category_path'));
+      $category->appendChild($this->xml->createCDATASection( $p['category'] ));
+
+      $product->appendChild ( $this->xml->createElement('category_id', $p['categoryid']) );
+
+      if( $p['color'] != '' && !in_array($p['color'], $this->notAllowed) ) {
+        $product->appendChild ( $this->xml->createElement('color', $p['color']) );
+      }
+
+      if( array_key_exists('size', $p) && $p['size'] != '' ) {
+        $product->appendChild ( $this->xml->createElement('size', $p['size']) );
+      }
+
+    }
   }
 
   private function getCategories($oProduct) {
@@ -241,9 +250,9 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
         }
         $aCategories['bread'] = mb_substr(trim(substr($aCategories['bread'],0,-3)),0,299,'UTF-8');
       }
-      }
+    }
 
-      return $aCategories;
+    return $aCategories;
   }
 
 }
