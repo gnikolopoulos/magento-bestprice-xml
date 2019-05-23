@@ -120,12 +120,12 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     
   	Mage::getSingleton('core/resource_iterator')->walk(
   		$this->oProducts->getSelect(),
-  			array(array($this, 'productCallback')),
-  			array('store_id' => $storeId)
+  		array(array($this, 'productCallback')),
+  		array('store_id' => $storeId)
   	);
   }
 
-  private function productCallback($args) {
+  public function productCallback($args) {
     $oProduct = Mage::getModel('catalog/product')->setData($args['row']);
 
     $aCats = $this->getCategories($oProduct);
