@@ -62,7 +62,6 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
     $root = $dom->createElement($this->store_name);
 
-    date_default_timezone_set('Europe/Athens');
     $stamp = $dom->createElement('created_at', date('Y-m-d H:i') );
     $root->appendChild($stamp);
 
@@ -107,7 +106,15 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     ); //bestprice products only
     $this->oProducts->addAttributeToSelect(['entity_id', 'attribute_set_id', 'skroutz','sku','name','manufacturer_value','final_price','short_description','url_path','small_image','color_value','type_id', 'is_in_stock', 'image']);
     if( !$this->show_outofstock ) {
-      $this->oProducts->joinTable('cataloginventory/stock_item', 'product_id=entity_id', array('*'), 'is_in_stock = 1');
+      $this->oProducts->joinField('qty',
+          'cataloginventory/stock_item',
+          'qty',
+          'product_id=entity_id',
+          '{{table}}.stock_id=1',
+          'left'
+        );
+      $this->oProducts->joinTable('cataloginventory/stock_item', 'product_id=entity_id', array('stock_status' => 'is_in_stock'));
+      $this->oProducts->addAttributeToFilter('stock_status', 1);
     }
     $this->oProducts->addFinalPrice();
     
@@ -208,7 +215,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
       if( $p['additional_imageurl'] ) {
         foreach($p['additional_imageurl'] as $image) {
-          //$product->appendChild ( $this->xml->createElement('imagesURL', $image) );
+          $product->appendChild ( $this->xml->createElement('imagesURL', $image) );
         }
       }
 
