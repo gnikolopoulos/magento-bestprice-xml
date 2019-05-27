@@ -1,10 +1,9 @@
 <?php
 
-class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
+class ID_Feed_Model_Observer {
 
   private $oProducts;
   private $oProdudctIds;
-  private $oProductModel;
   private $store_name;
   private $xml_file_name;
   private $xml_path;
@@ -12,8 +11,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
   private $excluded;
   private $xml;
   private $xmlContents;
-
-  private $attribute;
+  private $base_node;
 
   private $BadChars = array('"',"\r\n","\n","\r","\t");
   private $ReplaceChars = array(""," "," "," ","");
@@ -38,7 +36,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $this->media_url = Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_MEDIA) . 'catalog/product';
   }
 
-  public function indexAction() {
+  public function generate() {
 
     $time_start = microtime(true);
 
@@ -53,8 +51,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
     $this->xml->formatOutput = true;
     $this->xml->save($this->file);
 
-    echo 'XML Feed generated in: ' . number_format((microtime(true) - $time_start), 2) . ' seconds';
-
+    Mage::log( 'XML Feed generated in: ' . number_format((microtime(true) - $time_start), 2) . ' seconds' );
   }
 
   private function createXML() {
@@ -97,7 +94,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
         array('attribute'=>'bestprice', 'eq' => '1'),
       )
     ); //skroutz products only
-    $this->oProducts->addAttributeToSelect(['entity_id', 'bestprice','sku','name','manufacturer_value','final_price','short_description','url_path','small_image','color_value','type_id', 'image']);
+    $this->oProducts->addAttributeToSelect(['entity_id', 'bestprice','sku','name','manufacturer_value','final_price','short_description','url_path','small_image','color_value','type_id']);
     if( !$this->show_outofstock ) {
       $this->oProducts->joinField('qty',
           'cataloginventory/stock_item',
@@ -108,8 +105,6 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
         );
       $this->oProducts->joinTable('cataloginventory/stock_item', 'product_id=entity_id', array('stock_status' => 'is_in_stock'));
       $this->oProducts->addAttributeToFilter('stock_status', 1);
-      // alt
-      //$this->oProducts->joinTable('cataloginventory/stock_item', 'product_id=entity_id', array('*'), 'is_in_stock = 1');
     }
     $this->oProducts->addFinalPrice();
 

@@ -1,28 +1,47 @@
 <?xml version="1.0"?>
   <config>
     <modules>
-      <ID_Feedbs>
-        <version>0.0.1</version>
-      </ID_Feedbs>
+        <ID_Feedbs>
+            <version>0.0.1</version>
+        </ID_Feedbs>
     </modules>
 
     <frontend>
-      <routers>
-        <feedbs>
-          <use>standard</use>
-          <args>
-            <module>ID_Feedbs</module>
-            <frontName>feedbs</frontName>
-          </args>
-        </feedbs>
-      </routers>
+        <routers>
+            <feedbs>
+                <use>standard</use>
+                <args>
+                    <module>ID_Feedbs</module>
+                    <frontName>feedbs</frontName>
+                </args>
+            </feedbs>
+        </routers>
     </frontend>
-      
+
     <global>
-      <helpers>
-        <feedbs>
-          <class>ID_Feedbs_Helper</class>
-        </feedbs>
-      </helpers>
+        <models>
+            <feedbs>
+                <class>ID_Feedbs_Model</class>
+            </feedbs>
+        </models>
+
+        <helpers>
+            <feedsb>
+                <class>ID_Feedsb_Helper</class>
+            </feedsb>
+        </helpers>
     </global>
+
+    <crontab>
+        <jobs>
+            <feedsb>
+                <schedule>
+                    <cron_expr>* */2 * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>feedsb/observer::generate</model>
+                </run>
+            </feedsb>
+        </jobs>
+    </crontab>
   </config>
