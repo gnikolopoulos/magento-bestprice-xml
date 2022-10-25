@@ -213,7 +213,7 @@ class ID_Feedbs_IndexController extends Mage_Core_Controller_Front_Action {
 
       if( $p['additional_imageurl'] ) {
         foreach($p['additional_imageurl'] as $image) {
-          $product->appendChild ( $this->xml->createElement('imagesURL', $image) );
+          $product->appendChild ( $this->xml->createElement('additional_image', $image) );
         }
       }
 
